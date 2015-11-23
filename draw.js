@@ -34,7 +34,9 @@ function get_first_intersection(ray){
 function generateImage(){
 	for (x=1; x<Image.width; x++){
 		for (y=1; y<Image.height; y++){
-			var origin_ray=ray(vec3(x,y,0),vec3(0,0,1))
+			//Fire ray from the eye through the pixel
+			//Trace the ray and set the pixel's color
+			var origin_ray;
 			Image.setPixel(x,y,trace_ray(origin_ray));
 		}
 	}
