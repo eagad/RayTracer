@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+
+<script id="vertex-shader" type="x-shader/x-vertex">
+//This is a vertex shader, we'll discuss this later in the semester
+//Derived from code for Interactive Computer Graphics 7th Ed.
+
+attribute vec4 vColor;
+attribute vec4 vPosition;
+
+varying vec4 col;
+
+void main()
+{
+gl_PointSize = 1.0;
+gl_Position = vPosition;
+col = vColor;
+}
+</script>
+
+<script id="fragment-shader" type="x-shader/x-fragment">
+//This is a fragment shader, we'll discuss this later in the semester
+//Derived from code for Interactive Computer Graphics 7th Ed.
+
+precision mediump float;
+
+varying vec4 col;
+
+void main()
+{
+    gl_FragColor = col;
+}
+</script>
+
+<script src="webgl-utils.js"></script>
+<script src="initShaders.js"></script>
+<script src="MV.js"></script>
+<script src="Image.js"></script>
+<script src="draw.js"></script>
+
+
+<body>
+<canvas id="gl-canvas" width="512", height="512">
+<pre>No Support... :(</pre>
+</canvas>
+</br>
+</body>
+</html>
