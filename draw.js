@@ -5,39 +5,74 @@ var pixels=[];
 var points=[];
 var colors=[];
 
-function trace_ray(ray){
-	var point_color, reflect_color, refract_color;
+var objects=[]
 
-	var obj=get_first_intersection(ray);
-	point_color=get_point_color(obj);
+var lightPosition=vec3(0,100,0);
+var eyePosition=vec3(0,0,-50);
+var lookPoint=vec3(0,0,0);
 
-	//if (object is reflective)
-	//	reflect_color=trace_ray(get_reflected_ray(ray,obj));
-	//if (object is refractive)
-	//	refract_color=trace_ray(get_refracted_ray(ray,obj));
-	
-	return combine_colors(point_color,reflect_color,refract_color);
+function trace_ray(origin,direction){
+	var nearest_t=Infinity;
+	var nearest_object=null;
+	for each (var object in objects){
+		//find t, the smallest non-negative real solution to the ray/object
+		//intersection equation
+		if (t != null){
+			if t<nearest_t{
+				nearest_t=t;
+				nearest_object=object;
+			}
+		}
+	}
+	var color=vec4(0.0,0.0,0.0,1.0);
+	if (nearest_object != null){
+		var intersect_point=vec3();
+		var normal=vec3();
+		if (/*object is reflective*/){
+			var reflection_vector=vec3();
+			var reflect_color=trace_ray(intersect_point,reflection_vector);
+			color+=reflection_coeff*reflected_color;
+		}
+		if (/*object is refractive*/){
+			var refraction_vector=vec3();
+			var refract_color=trace_ray(intersect_point,refraction_vector);
+			color+=refraction_coeff*refracted_color;
+		}
+		if shadow_ray(intersec_point,lightPosition){
+			//no shadow
+			//calculate light's color contribution by doing the illlumination calculations using D,N, the current light, and the object properties
+			color+=//light's color contribution
+		}
+	}
+	return color;			
+		
 }
 
-function combine_colors(point_color,reflect_color,refrace_color){
-	return NULL;
-}
-
-function get_first_intersection(ray){
-  return NULL;
-}
-
-function get_first_intersection(ray){
-	return NULL;
+function shadow_ray(point1,point2){
+	var nearest_t=Infinity;
+	var nearest_object=null;
+	for each (var object in objects){
+		//find t, the smallest non-negative real solution to the ray/object
+		//intersection equation
+		if (t!=null){
+			if (t<nearest_t){
+				nearest_t=t;
+			}
+		}
+	}
+	if (t<1)
+		return false;
+	else
+		return true;
 }
 
 function generateImage(){
 	for (x=1; x<Image.width; x++){
 		for (y=1; y<Image.height; y++){
-			//Fire ray from the eye through the pixel
-			//Trace the ray and set the pixel's color
-			var origin_ray;
-			Image.setPixel(x,y,trace_ray(origin_ray));
+			var direction=vec3(x-eyePosition[0],y-eyePosition[1]-y,-eyePosition.z);
+			var magnitude=Math.sqrt(direction[0]^2+direction[1]^2+direction[2]^2);
+			direction=vec3(direction[0]/magnitude,direction[1]/magnitude,direction[2]/magnitude);
+			Image.setPixel(x,y,trace_ray(eyePosition,direction));
 		}
 	}
 	renderImage(Image);
@@ -51,6 +86,7 @@ function clearImage(){
 	}
 	renderImage(Image);
 }
+
 function glInit(canvas)	    
 {
     gl=WebGLUtils.setupWebGL(canvas);
