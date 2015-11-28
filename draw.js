@@ -7,48 +7,68 @@ var colors=[];
 
 var objects=[];
 
-var lightPosition=vec3(0,100,0);
-var eyePosition=vec3(0,0,-50);
+var lightPosition=vec3(-256,-200,100);
+var eyePosition=vec3(0,0,-200);
 var lookPoint=vec3(0,0,0);
 
 var kd=0.9; //diffuse
 var ka=0.1; //ambient
 
+function sphere_intersect(s,d,sphere){
+	var t=null;
+	var r=sphere.radius;
+	var c=sphere.center;
+
+	var intersection=[null,null];
+
+	var rsq=r*r;
+
+	var p=vec_subtract(c,s);
+	var p_d=dot(p,d);
+	if (p_d<0 || (dot(p,p) < rsq))
+		return intersection;
+	var a=vec_subtract(p,vec_mult(d,p_d));
+	var asq=dot(a,a);
+	if (asq>rsq)
+		return intersection;
+	var h=Math.sqrt(rsq-asq);	
+
+	var i=vec_subtract(a,vec_mult(d,h));
+	var intersect=vec_add(c,i);
+	var normal=vec_mult(i,1/r);
+
+	intersection[0]=intersect;
+	intersection[1]=normal;
+	return intersection;
+}
+
 function trace_ray(origin,direction){
 	var nearest_t=Infinity;
 	var nearest_object=null;
+	var surface_normal=null;
+	var intersect_point=null;
 
 	//find closest intersection point
 	for (i=0;i<objects.length;i++){
 		var object=objects[i];
-		var t=null;
-		//assuming each object is spherical
-			var center=object.center; //center of circle
-			var r=object.radius; //radius of circle
 
-			var dist=vec_subtract(origin,center);
-
-			var a=dot(direction,dist);
-			var b=a*a-magnitude(dist)^2+r*r;
-			//b>0, two solutions exist
-			//b=0, one solution exists
-			//b<0, no solutions exist	
-			if (b>0){
-				t=Math.min(-a+Math.sqrt(b),-a-Math.sqrt(b));
-			}
-		if (t != null){
+		var intersection=sphere_intersect(origin,direction,object);
+		var intersect=intersection[0];
+		var normal=intersection[1];
+		if (intersect != null){
+//			console.log(intersect);
+			var t=magnitude(vec_subtract(intersect,origin));
 			if (t<nearest_t){
 				nearest_t=t;
 				nearest_object=object;
+				intersect_point=intersect;
+				surface_normal=normal;
 			}
 		}
 	}
 
 	var color=BLACK;
 	if (nearest_object != null){
-		
-		var intersect_point=vec_mult(direction,nearest_t); //point of intersection
-
 		if (nearest_object.reflect_coeff>0){
 			var reflection_vector=vec3();
 			var reflect_color=trace_ray(intersect_point,reflection_vector);
@@ -59,53 +79,36 @@ function trace_ray(origin,direction){
 			var refract_color=trace_ray(intersect_point,refraction_vector);
 			color+=nearest_object.refract_coeff*refracted_color;
 		}
-		if (shadow_ray(intersect_point,lightPosition)){
+//		if (shadow_ray(intersect_point,lightPosition)){
 			//no shadow
 			var L=unit(vec_subtract(lightPosition,intersect_point));
-			var N=unit(vec_subtract(intersect_point,nearest_object.center));
+//			var N=unit(vec_subtract(intersect_point,nearest_object.center));
+var N=surface_normal;
 
 			var factor=dot(N,L);	
 	
 			var c=nearest_object.color;
 	
 			color=vec4(c[0]*factor*kd+c[0]*ka,c[1]*factor*kd+c[1]*ka,c[2]*factor*kd+c[2]*ka,1.0);		
-		}
+//		}
 	}
 	return color;			
 		
 }
 
 function shadow_ray(origin,light){
-	var nearest_t=Infinity;
-	var nearest_object=null;
-
-	var direction = unit(vec_subtract(light,origin));
-
-	for (i=0;i<objects.length-1;i++){
+	var direction=unit(vec_subtract(light,origin));
+	for (i=0;i<objects.length;i++){
 		var object=objects[i];
-		var t=null;
-		//assuming each object is spherical
-			var center=object.center; //center of circle
-			var r=object.radius; //radius of circle
+		var intersection=sphere_intersect(origin,direction,object);
+		var intersect=intersection[0];
+		var normal=intersection[1];
 
-			var dist=vec_subtract(origin,center);
-
-			var a=dot(direction,dist)
-			var b=a*a-magnitude(dist)^2+r*r;
-			//b>0, two solutions exist
-			//b=0, one solution exists
-			//b<0, no solutions exist	
-			if (b>0){
-				t=Math.min(-a+Math.sqrt(b),-a-Math.sqrt(b));
-			}
-		if (t != null){
-			if (t<nearest_t){
-				nearest_t=t;
-				nearest_object=object;
-			}
+		if (intersect != null){
+			return false;
 		}
 	}
-	return t==null;
+	return true;
 }
 
 function dot(vec1,vec2){
@@ -128,19 +131,24 @@ function vec_subtract(vec1,vec2){
 	return vec3(vec1[0]-vec2[0],vec1[1]-vec2[1],vec1[2]-vec2[2]);
 }
 
-function magnitude(vector){
-	return Math.sqrt(vector[0]^2+vector[1]^2+vector[2]^2);
+function magnitude(vec){
+	return Math.sqrt(vec[0]*vec[0]+vec[1]*vec[1]+vec[2]*vec[2]);
 }
-function unit(vector){
-	var magnitude=Math.sqrt(vector[0]^2+vector[1]^2+vector[2]^2);
-	return vec3(vector[0]/magnitude,vector[1]/magnitude,vector[2]/magnitude);
+function unit(vec){
+	var mag=magnitude(vec);
+	return vec3(vec[0]/mag,vec[1]/mag,vec[2]/mag);
 }
 
 function generateImage()
 {
-	var sphere1=new Sphere(vec3(0,0,50),50);
+	var sphere1=new Sphere(vec3(100,100,100),100);
+	sphere1.setColor(RED);
+
+	var sphere2=new Sphere(vec3(200,100,50),50);
+	sphere2.setColor(BLUE);
 
 	objects.push(sphere1);
+	objects.push(sphere2);
 
 	for (x=1; x<myImage.width; x++){
 		for (y=1; y<myImage.height; y++){
