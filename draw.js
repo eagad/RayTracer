@@ -7,8 +7,8 @@ var colors=[];
 
 var objects=[];
 
-var lightPosition=vec3(-256,-200,100);
-var eyePosition=vec3(0,0,-200);
+var lightPosition=vec3(256,128,-50);
+var eyePosition=vec3(256,128,-500);
 var lookPoint=vec3(0,0,0);
 
 var kd=0.9; //diffuse
@@ -56,7 +56,6 @@ function trace_ray(origin,direction){
 		var intersect=intersection[0];
 		var normal=intersection[1];
 		if (intersect != null){
-//			console.log(intersect);
 			var t=magnitude(vec_subtract(intersect,origin));
 			if (t<nearest_t){
 				nearest_t=t;
@@ -82,13 +81,11 @@ function trace_ray(origin,direction){
 //		if (shadow_ray(intersect_point,lightPosition)){
 			//no shadow
 			var L=unit(vec_subtract(lightPosition,intersect_point));
-//			var N=unit(vec_subtract(intersect_point,nearest_object.center));
-var N=surface_normal;
+			var N=surface_normal;		
 
 			var factor=dot(N,L);	
 	
 			var c=nearest_object.color;
-	
 			color=vec4(c[0]*factor*kd+c[0]*ka,c[1]*factor*kd+c[1]*ka,c[2]*factor*kd+c[2]*ka,1.0);		
 //		}
 	}
@@ -144,11 +141,16 @@ function generateImage()
 	var sphere1=new Sphere(vec3(100,100,100),100);
 	sphere1.setColor(RED);
 
-	var sphere2=new Sphere(vec3(200,100,50),50);
+	var sphere2=new Sphere(vec3(300,100,100),50);
 	sphere2.setColor(BLUE);
+
+	var sphere3=new Sphere(vec3(500,100,100),25);
+	sphere3.setColor(GREEN);
+
 
 	objects.push(sphere1);
 	objects.push(sphere2);
+	objects.push(sphere3);
 
 	for (x=1; x<myImage.width; x++){
 		for (y=1; y<myImage.height; y++){
