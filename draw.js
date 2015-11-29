@@ -7,39 +7,34 @@ var colors=[];
 
 var objects=[];
 
-var lightPosition=vec3(256,128,-50);
+var lightPosition=vec3(256,128,-150);
 var eyePosition=vec3(256,128,-500);
 var lookPoint=vec3(0,0,0);
 
 var kd=0.9; //diffuse
-var ka=0.1; //ambient
+var ka=0.2; //ambient
 
 function sphere_intersect(s,d,sphere){
-	var t=null;
 	var r=sphere.radius;
 	var c=sphere.center;
-
-	var intersection=[null,null];
 
 	var rsq=r*r;
 
 	var p=vec_subtract(c,s);
 	var p_d=dot(p,d);
 	if (p_d<0 || (dot(p,p) < rsq))
-		return intersection;
+		return null;
 	var a=vec_subtract(p,vec_mult(d,p_d));
 	var asq=dot(a,a);
 	if (asq>rsq)
-		return intersection;
+		return null;
 	var h=Math.sqrt(rsq-asq);	
 
 	var i=vec_subtract(a,vec_mult(d,h));
 	var intersect=vec_add(c,i);
-	var normal=vec_mult(i,1/r);
+	var normal=unit(vec_mult(i,1/r));
 
-	intersection[0]=intersect;
-	intersection[1]=normal;
-	return intersection;
+	return [intersect,normal];
 }
 
 function trace_ray(origin,direction){
@@ -53,9 +48,9 @@ function trace_ray(origin,direction){
 		var object=objects[i];
 
 		var intersection=sphere_intersect(origin,direction,object);
-		var intersect=intersection[0];
-		var normal=intersection[1];
-		if (intersect != null){
+		if (intersection != null){
+			var intersect=intersection[0];
+			var normal=intersection[1];
 			var t=magnitude(vec_subtract(intersect,origin));
 			if (t<nearest_t){
 				nearest_t=t;
@@ -67,33 +62,42 @@ function trace_ray(origin,direction){
 	}
 
 	var color=BLACK;
+	var reflect_color=BLACK;
 	if (nearest_object != null){
 		if (nearest_object.reflect_coeff>0){
-			var reflection_vector=vec3();
-			var reflect_color=trace_ray(intersect_point,reflection_vector);
-			color+=nearest_object.reflect_coeff*reflected_color;
+			var d=direction;
+			var n=surface_normal;
+			var reflection_vector=vec_subtract(d,vec_mult(n,2*dot(d,n)));
+			
+			var c=nearest_object.reflect_coeff;
+			rc=trace_ray(intersect_point,reflection_vector);
+			reflect_color=vec4(rc[0]*c,rc[1]*c,rc[2]*c,1.0);
 		}
 		if (nearest_object.refract_coeff>0){
-			var refraction_vector=vec3();
-			var refract_color=trace_ray(intersect_point,refraction_vector);
-			color+=nearest_object.refract_coeff*refracted_color;
 		}
-//		if (shadow_ray(intersect_point,lightPosition)){
+		if (shadow_ray(intersect_point,lightPosition)){
 			//no shadow
 			var L=unit(vec_subtract(lightPosition,intersect_point));
-			var N=surface_normal;		
+			var N=surface_normal;
 
 			var factor=dot(N,L);	
 	
 			var c=nearest_object.color;
 			color=vec4(c[0]*factor*kd+c[0]*ka,c[1]*factor*kd+c[1]*ka,c[2]*factor*kd+c[2]*ka,1.0);		
-//		}
+			//color=c;
+			color=vec4(color[0]+reflect_color[0],color[1]+reflect_color[1],color[2]+reflect_color[2]);
+
+
+		}else{
+			color=BLUE;
+		}
 	}
 	return color;			
 		
 }
 
 function shadow_ray(origin,light){
+return true;
 	var direction=unit(vec_subtract(light,origin));
 	for (i=0;i<objects.length;i++){
 		var object=objects[i];
@@ -140,21 +144,37 @@ function generateImage()
 {
 	var sphere1=new Sphere(vec3(100,100,100),100);
 	sphere1.setColor(RED);
+	sphere1.setReflectionCoefficient(0.8);
 
-	var sphere2=new Sphere(vec3(300,100,100),50);
-	sphere2.setColor(BLUE);
+	var sphere2=new Sphere(vec3(300,50,100),75);
+	sphere2.setColor(GREEN);
+	sphere2.setReflectionCoefficient(0.8);
 
-	var sphere3=new Sphere(vec3(500,100,100),25);
-	sphere3.setColor(GREEN);
+	var sphere3=new Sphere(vec3(500,150,100),50);
+	sphere3.setColor(BLUE);
+	sphere3.setReflectionCoefficient(0.8);
 
+	var sphere4=new Sphere(vec3(200,200,250),50);
+	sphere4.setColor(PURPLE);
+	sphere4.setReflectionCoefficient(0.8);
 
 	objects.push(sphere1);
 	objects.push(sphere2);
 	objects.push(sphere3);
+	objects.push(sphere4);
+
+	/*for (i=1;i<5;i++){
+		var sphere=new Sphere(vec3(Math.random()*512,Math.random()*256,Math.random()*200+100),Math.random()*50+25);
+		sphere.setColor(vec4(Math.random(),Math.random(),Math.random(),1.0));
+		sphere.setReflectionCoefficient(0.9);
+		objects.push(sphere);
+	}
+	*/
 
 	for (x=1; x<myImage.width; x++){
 		for (y=1; y<myImage.height; y++){
-			var direction=vec3(x-eyePosition[0],y-eyePosition[1],-eyePosition[2]);
+			var pixelPos=vec3(x,y,0);
+			var direction=vec_subtract(pixelPos,eyePosition);
 			myImage.setPixel(x,y,trace_ray(eyePosition,unit(direction)));
 		}
 	}
