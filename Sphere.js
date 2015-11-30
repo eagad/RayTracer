@@ -10,9 +10,9 @@ Sphere.prototype.setColor=function(c){
 	this.color=c;
 }
 Sphere.prototype.setReflectionCoefficient=function(r){
-	this.reflect_coeff=r;
+	this.reflect_coeff=r
 }
 
 Sphere.prototype.setRefractionCoefficient=function(r){
-	this.refract_coeff=r;
+	this.refract_coeff=r
 }

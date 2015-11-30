@@ -24,9 +24,6 @@ function radians( degrees ) {
 //
 //  Vector Constructors
 //
-function ray(origin,direction){
-	return [origin,direction];
-}
 
 function vec2()
 {
