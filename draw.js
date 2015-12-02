@@ -7,8 +7,13 @@ var colors=[];
 
 var objects=[];
 
-var lightPosition=vec3(256,1000,0);
+
+var lightPosition=vec3(256,1000,-150);
 var eyePosition=vec3(256,128,-500);
+//var lightPosition=vec3(256,128,900);
+//var eyePosition=vec3(256,128,-500);
+//var lightPosition=vec3(0,0,900);
+//var eyePosition=vec3(0,0,-500);
 var lookPoint=vec3(0,0,0);
 
 var max_depth=10;
@@ -19,24 +24,48 @@ var ka=0.2; //ambient
 function sphere_intersect(s,d,sphere){
 	var r=sphere.radius;
 	var c=sphere.center;
-
 	var rsq=r*r;
-
 	var p=vec_subtract(c,s);
 	var p_d=dot(p,d);
-	if (p_d<0 || (dot(p,p) < rsq))
+	if (p_d<0 )
 		return null;
 	var a=vec_subtract(p,vec_mult(d,p_d));
 	var asq=dot(a,a);
 	if (asq>rsq)
 		return null;
 	var h=Math.sqrt(rsq-asq);	
+	var t0 = p_d - h ;
+	var t1 = p_d + h;
+	if( t0 < 0 ){
+		t0 = t1;
+		if(t1<0)
+			return null;
+	}	
 
-	var i=vec_subtract(a,vec_mult(d,h));
-	var intersect=vec_subtract(c,i);
-	var normal=unit(vec_mult(i,-1/r));
-
+	var i=vec_mult(d,t0);
+	var intersect=vec_add(s, i);
+	var normal=unit(vec_mult(  vec_subtract(intersect, c)    ,1/r));
 	return [intersect,normal];
+}
+
+function plane_intersect(origin,direction,plane){
+	var p0  = plane.point;
+	var n = unit(plane.normal);
+	var lo = origin;
+	var l = unit(direction);
+	var denom = dot(l,n);
+	if(dot(l,n)<0.000001) // plane and ray are parallel
+	{	//console.log("no plane intersection");
+		return null;
+	}
+	var p0_lo = vec_subtract(p0, lo);
+	var num= dot(p0_lo, n);
+	var t = num/denom;
+	if(t<0)
+		return null;
+	var intersection = vec_add(lo, vec_mult(l,t));
+	//console.log(intersection);
+	return 	[intersection, n];
 }
 
 function trace_ray(origin,direction,depth){
@@ -48,8 +77,11 @@ function trace_ray(origin,direction,depth){
 	//find closest intersection point
 	for (i=0;i<objects.length;i++){
 		var object=objects[i];
-
-		var intersection=sphere_intersect(origin,direction,object);
+		var intersection;
+		if (object.getType()=== 1)	
+		intersection=sphere_intersect(origin,direction,object);
+		if(object.getType()=== 2)
+		intersection=plane_intersect(origin,direction,object);
 		if (intersection != null){
 			var intersect=intersection[0];
 			var normal=intersection[1];
@@ -65,20 +97,38 @@ function trace_ray(origin,direction,depth){
 
 	var color=BLACK;
 	var reflect_color=BLACK;
+	var refract_color=BLACK;
 	if (nearest_object != null){
 
 		if (depth<max_depth){
 		if (nearest_object.reflect_coeff>0){
-			var d=vec_negate(direction);
+			var d=direction;
 			var n=surface_normal;
-			var reflection_vector=vec_add(d,vec_mult(n,-2*dot(d,n)));
-			
+			var reflection_vector=vec_add(d,vec_mult(n,-2*dot(d,n)));			
 			var c=nearest_object.reflect_coeff;
-			rc=trace_ray(intersect_point,reflection_vector,depth+1);
+			var rc=trace_ray(intersect_point,unit(reflection_vector),depth+1);
 			reflect_color=vec4(rc[0]*c,rc[1]*c,rc[2]*c,1.0);
 		}
 		if (nearest_object.refract_coeff>0){
+
+			var d = direction;
+			var n = surface_normal;
+			var n1 = nearest_object.refract_coeff; 
+			var n2 = 1; //this should be chanhged later 					
+			var c1 = -1.0*dot(d,n);
+		//	var index = n1/n2;
+			var index = 1; // assuming every thing is air
+			var cst2 = (1.0- index*index*(1.0- c1*c1));
+			if(cst2 > 0.0){
+			var c2 = Math.sqrt(cst2);
+			refraction_vector =vec_add( vec_mult(d, index)   , vec_mult(n ,  (index*c1 - c2) ));
+			var c = 	nearest_object.refract_coeff;	
+			var rc= trace_ray(intersect_point, unit(refraction_vector), 21);
+			refract_color = vec4(rc[0]*c, rc[1]*c, rc[2]*c,1.0 );
+			}
+
 		}
+
 		}
 		var L=unit(vec_subtract(lightPosition,intersect_point));
 		var N=surface_normal;
@@ -86,13 +136,21 @@ function trace_ray(origin,direction,depth){
 		var factor=dot(N,L);	
 
 		var c=nearest_object.color;
-		var hit=findShadows(vec_add(intersect_point,surface_normal));
-		if (hit!=null){
-			color=vec4(c[0]*0.03,c[1]*0.03,c[2]*0.03,1.0);
-		}else{
-			color=vec4(c[0]*factor*kd+c[0]*ka,c[1]*factor*kd+c[1]*ka,c[2]*factor*kd+c[2]*ka,1.0);		
+
+		if (findShadows(intersect_point)){
+			color=vec4(c[0]*0.1,c[1]*0.1,c[2]*0.1,1.0);
+		} else{
+			if (nearest_object.getType()==1){
+				color=vec4(c[0]*factor*kd+c[0]*ka,c[1]*factor*kd+c[1]*ka,c[2]*factor*kd+c[2]*ka,1.0);		
+			}else if (nearest_object.getType()==2){
+				color=c;
+			}
 		}
-		color=vec4(color[0]+reflect_color[0],color[1]+reflect_color[1],color[2]+reflect_color[2]);
+		//color=c;
+
+		//color=vec4(color[0]+refract_color[0],color[1]+refract_color[1],color[2]+refract_color[2]);
+		color=vec4(color[0]+reflect_color[0]+refract_color[0],color[1]+reflect_color[1]+refract_color[1],color[2]+reflect_color[2]+refract_color[2]);
+
 	}
 	return color;			
 		
@@ -103,12 +161,16 @@ function findShadows(origin){
 	for (i=0;i<objects.length;i++){
 		var object=objects[i];
 
-		var intersection=sphere_intersect(origin,direction,object);
+		if (object.getType()=== 1)	
+			intersection=sphere_intersect(origin,direction,object);
+		if(object.getType()=== 2)
+			intersection=plane_intersect(origin,direction,object);
+			
 		if (intersection != null){
-			return object;
+			return true;
 		}
 	}
-	return null;
+	return false;
 }
 
 function dot(vec1,vec2){
@@ -141,26 +203,51 @@ function unit(vec){
 
 function generateImage()
 {
-	var sphere1=new Sphere(vec3(100,100,100),100);
+	var sphere1=new Sphere(vec3(200,150,100),150);
 	sphere1.setColor(RED);
 	sphere1.setReflectionCoefficient(0.5);
+//	sphere1.setRefractionCoefficient(0.5);
 
-	var sphere2=new Sphere(vec3(200,250,100),75);
+	var sphere2=new Sphere(vec3(500,100,100),100);
 	sphere2.setColor(GREEN);
 	sphere2.setReflectionCoefficient(0.5);
+//	sphere2.setRefractionCoefficient(0.5);
 
-	var sphere3=new Sphere(vec3(500,150,100),50);
+	var sphere3=new Sphere(vec3(700,300,200),75);
 	sphere3.setColor(BLUE);
 	sphere3.setReflectionCoefficient(0.5);
 
-	var sphere4=new Sphere(vec3(300,200,250),50);
+	var sphere4=new Sphere(vec3(300,400,300),50);
 	sphere4.setColor(PURPLE);
 	sphere4.setReflectionCoefficient(0.5);
+
+	var plane1 = new Plane(vec3(256,0,0), vec3(0,-1,0.2) );
+	plane1.setColor(vec4(0.5, 0.5, 0.5, 1.0));
+	plane1.setReflectionCoefficient(0.5);
 
 	objects.push(sphere1);
 	objects.push(sphere2);
 	objects.push(sphere3);
 	objects.push(sphere4);
+	objects.push(plane1);
+
+/*
+
+	var sphere1=new Sphere(vec3(120,120,500),150);
+	sphere1.setColor(RED);
+	sphere1.setReflectionCoefficient(0.5);
+//	sphere1.setRefractionCoefficient(0.5);
+	objects.push(sphere1);
+
+
+	var sphere2=new Sphere(vec3(110,110,250),50);
+	sphere2.setColor(BLUE);
+//	sphere1.setReflectionCoefficient(0.5);
+	//sphere2.setRefractionCoefficient(0.3);
+	objects.push(sphere2);
+*/
+
+
 
 /*	for (i=1;i<5;i++){
 		var sphere=new Sphere(vec3(Math.random()*512,Math.random()*256,Math.random()*200+100),Math.random()*50+25);
@@ -208,7 +295,7 @@ window.onload=function init()
     myImage=new Image(canvas);
 
     //Here we are specifying the width and height of our new Image.
-    myImage.setImageSize(512, 256);
+    myImage.setImageSize(800, 400);
     //Now are are initializing out image to make sure all the pixels
     //are empty.
     myImage.clearImage();
