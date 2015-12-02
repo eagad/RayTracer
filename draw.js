@@ -7,7 +7,7 @@ var colors=[];
 
 var objects=[];
 
-var lightPosition=vec3(256,-1000,-150);
+var lightPosition=vec3(256,1000,0);
 var eyePosition=vec3(256,128,-500);
 var lookPoint=vec3(0,0,0);
 
@@ -33,8 +33,8 @@ function sphere_intersect(s,d,sphere){
 	var h=Math.sqrt(rsq-asq);	
 
 	var i=vec_subtract(a,vec_mult(d,h));
-	var intersect=vec_add(c,i);
-	var normal=unit(vec_mult(i,1/r));
+	var intersect=vec_subtract(c,i);
+	var normal=unit(vec_mult(i,-1/r));
 
 	return [intersect,normal];
 }
@@ -69,7 +69,7 @@ function trace_ray(origin,direction,depth){
 
 		if (depth<max_depth){
 		if (nearest_object.reflect_coeff>0){
-			var d=direction;
+			var d=vec_negate(direction);
 			var n=surface_normal;
 			var reflection_vector=vec_add(d,vec_mult(n,-2*dot(d,n)));
 			
@@ -80,18 +80,35 @@ function trace_ray(origin,direction,depth){
 		if (nearest_object.refract_coeff>0){
 		}
 		}
-		var L=unit(vec_subtract(intersect_point,lightPosition));
+		var L=unit(vec_subtract(lightPosition,intersect_point));
 		var N=surface_normal;
 
 		var factor=dot(N,L);	
 
 		var c=nearest_object.color;
-		color=vec4(c[0]*factor*kd+c[0]*ka,c[1]*factor*kd+c[1]*ka,c[2]*factor*kd+c[2]*ka,1.0);		
-		//color=c;
+		var hit=findShadows(vec_add(intersect_point,surface_normal));
+		if (hit!=null){
+			color=vec4(c[0]*0.03,c[1]*0.03,c[2]*0.03,1.0);
+		}else{
+			color=vec4(c[0]*factor*kd+c[0]*ka,c[1]*factor*kd+c[1]*ka,c[2]*factor*kd+c[2]*ka,1.0);		
+		}
 		color=vec4(color[0]+reflect_color[0],color[1]+reflect_color[1],color[2]+reflect_color[2]);
 	}
 	return color;			
 		
+}
+
+function findShadows(origin){
+	var direction=unit(vec_subtract(lightPosition,origin));
+	for (i=0;i<objects.length;i++){
+		var object=objects[i];
+
+		var intersection=sphere_intersect(origin,direction,object);
+		if (intersection != null){
+			return object;
+		}
+	}
+	return null;
 }
 
 function dot(vec1,vec2){
@@ -128,7 +145,7 @@ function generateImage()
 	sphere1.setColor(RED);
 	sphere1.setReflectionCoefficient(0.5);
 
-	var sphere2=new Sphere(vec3(300,50,100),75);
+	var sphere2=new Sphere(vec3(200,250,100),75);
 	sphere2.setColor(GREEN);
 	sphere2.setReflectionCoefficient(0.5);
 
@@ -136,7 +153,7 @@ function generateImage()
 	sphere3.setColor(BLUE);
 	sphere3.setReflectionCoefficient(0.5);
 
-	var sphere4=new Sphere(vec3(200,200,250),50);
+	var sphere4=new Sphere(vec3(300,200,250),50);
 	sphere4.setColor(PURPLE);
 	sphere4.setReflectionCoefficient(0.5);
 
